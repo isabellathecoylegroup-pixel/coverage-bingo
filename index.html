@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Coverage Bingo Host Console</title>
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a broadcast "stage" for screen-sharing, with a host control rail; two utility tabs for prep and the answer key */
+:root{
+  --bg:#EEF2F4; --surface:#FFFFFF; --ink:#12242E; --muted:#56707C; --line:#D3DDE2;
+  --stage:#12303F; --stage-ink:#F3F7F8; --stage-muted:#9FC0CC;
+  --ball:#F2A93B; --ball-ink:#2A1A00; --accent:#1C7C8C; --accent-ink:#FFFFFF;
+  --good:#2E8B57; --warn:#C2571A; --chip:#E3ECEF;
+  --f-display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C171D; --surface:#13232B; --ink:#E4EDF0; --muted:#8FA7B1; --line:#244049;
+  --stage:#0A2230; --stage-ink:#F3F7F8; --stage-muted:#8DB3C1;
+  --ball:#F2A93B; --ball-ink:#2A1A00; --accent:#3FB0C0; --accent-ink:#06222A;
+  --good:#5CC48A; --warn:#F08A4B; --chip:#1C323B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C171D; --surface:#13232B; --ink:#E4EDF0; --muted:#8FA7B1; --line:#244049;
+  --stage:#0A2230; --stage-ink:#F3F7F8; --stage-muted:#8DB3C1;
+  --ball:#F2A93B; --ball-ink:#2A1A00; --accent:#3FB0C0; --accent-ink:#06222A;
+  --good:#5CC48A; --warn:#F08A4B; --chip:#1C323B; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:16px;padding-block:18px 48px;display:flex;flex-direction:column;gap:16px}
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:1.6rem;margin:0;letter-spacing:-.01em}
+.brand small{display:block;color:var(--muted);font-size:.85rem}
+.minib{width:40px;height:40px;border-radius:50%;background:var(--ball);color:var(--ball-ink);display:grid;place-items:center;font-family:var(--f-mono);font-weight:700;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
+nav.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+nav.tabs button{border:0;background:transparent;color:var(--muted);font:600 .9rem var(--f-body);padding:8px 14px;border-radius:999px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
+
+/* game */
+.game{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+@media (max-width:900px){.game{grid-template-columns:1fr}}
+.stage{background:var(--stage);color:var(--stage-ink);border-radius:18px;padding:clamp(20px,4vw,44px);display:flex;flex-direction:column;gap:22px;min-height:460px;position:relative;overflow:hidden}
+.stage::after{content:"";position:absolute;right:-80px;top:-80px;width:260px;height:260px;border-radius:50%;border:28px solid rgba(242,169,59,.08);pointer-events:none}
+.stage-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.ball{width:76px;height:76px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFD58A,var(--ball) 60%,#C98118);color:var(--ball-ink);display:grid;place-items:center;font-family:var(--f-mono);font-weight:700;font-size:1.7rem;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.ball span{background:#FFF8EA;border-radius:50%;width:48px;height:48px;display:grid;place-items:center}
+.callof{font-family:var(--f-mono);color:var(--stage-muted);font-size:.9rem;letter-spacing:.06em;text-transform:uppercase}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:4px 10px;border-radius:999px;background:rgba(242,169,59,.16);color:var(--ball)}
+.scenario{font-family:var(--f-display);font-weight:600;font-size:clamp(1.5rem,3.4vw,2.5rem);line-height:1.2;margin:0;text-wrap:balance;max-width:28ch}
+.song{font-size:1.1rem;color:var(--ball);font-weight:600}
+.answer{border-top:1px dashed rgba(255,255,255,.2);padding-top:20px;display:flex;flex-direction:column;gap:8px}
+.answer .lbl{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--stage-muted)}
+.answer .term{font-family:var(--f-display);font-weight:800;font-size:clamp(1.8rem,4.2vw,3rem);color:var(--ball);line-height:1.05}
+.answer .why{font-size:1.15rem;max-width:60ch;color:var(--stage-ink)}
+.waiting{color:var(--stage-muted);font-size:1rem}
+.done-note{font-family:var(--f-display);font-size:2rem;font-weight:800}
+
+.controls{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 .92rem var(--f-body);padding:10px 14px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.warn{color:var(--warn)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.on{background:var(--chip);border-color:var(--warn);color:var(--warn)}
+kbd{font-family:var(--f-mono);font-size:.72rem;padding:1px 5px;border-radius:4px;border:1px solid currentColor;opacity:.7}
+
+.rail{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel h2{font-family:var(--f-display);font-size:1.05rem;margin:0;font-weight:800}
+.panel p{margin:0;color:var(--muted);font-size:.88rem}
+.meter{height:8px;background:var(--chip);border-radius:999px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.8rem;padding:3px 9px;border-radius:999px;background:var(--chip);color:var(--ink)}
+.chip.hit{background:var(--good);color:#fff}
+.chip.tricky{outline:2px solid var(--warn)}
+input[type=text]{width:100%;font:500 .95rem var(--f-body);padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.combo{position:relative}
+.combo-field{display:flex;gap:6px}
+.combo-field input{flex:1;min-width:0}
+.combo-toggle{flex:none;width:40px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;font-size:.9rem}
+.combo-toggle[aria-expanded="true"]{background:var(--chip)}
+.combo-list{margin:6px 0 0;padding:4px;list-style:none;max-height:240px;overflow-y:scroll;border:1px solid var(--line);border-radius:10px;background:var(--surface);overscroll-behavior:contain}
+@supports not selector(::-webkit-scrollbar){.combo-list{scrollbar-width:auto;scrollbar-color:var(--muted) var(--chip)}}
+.combo-list::-webkit-scrollbar{width:12px;-webkit-appearance:none}
+.combo-list::-webkit-scrollbar-track{background:var(--chip);border-radius:8px}
+.combo-list::-webkit-scrollbar-thumb{background:var(--muted);border-radius:8px;border:3px solid var(--chip)}
+.combo-list li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;font-size:.9rem}
+.combo-list li:hover,.combo-list li.active{background:var(--chip)}
+.combo-list li .st{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;flex:none}
+.combo-list li .st.yes{color:var(--good)} .combo-list li .st.no{color:var(--muted)}
+.combo-list .empty{color:var(--muted);cursor:default}
+.check-out{font-weight:600;font-size:.9rem;min-height:1.4em}
+.check-out.yes{color:var(--good)} .check-out.no{color:var(--warn)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.inline-confirm{font-size:.85rem;color:var(--warn)}
+
+/* guide */
+.guide{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:820px){.guide{grid-template-columns:1fr}}
+.guide .panel.wide{grid-column:1/-1}
+.checklist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.checklist label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.checklist input{margin-top:4px;width:17px;height:17px;accent-color:var(--accent);flex:none}
+.checklist .who{font-family:var(--f-mono);font-size:.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.checklist s{color:var(--muted)}
+.ros{width:100%;border-collapse:collapse;font-size:.92rem}
+.ros td{padding:9px 8px;border-top:1px solid var(--line);vertical-align:top}
+.ros td:first-child{font-family:var(--f-mono);white-space:nowrap;color:var(--accent);font-variant-numeric:tabular-nums;width:1%}
+.script{background:var(--bg);border-radius:10px;padding:14px;font-size:.95rem;white-space:pre-wrap;border:1px solid var(--line)}
+.copyrow{display:flex;justify-content:flex-end}
+.note{font-size:.85rem;color:var(--muted)}
+
+/* key */
+.keywrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table.key{width:100%;border-collapse:collapse;min-width:720px;font-size:.9rem}
+table.key th{text-align:left;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px;border-bottom:1px solid var(--line)}
+table.key td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+table.key td:first-child{font-family:var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+table.key td.t{font-weight:700;white-space:nowrap}
+table.key .songcell{color:var(--warn);font-weight:600}
+/* jukebox clips */
+.clips{display:flex;flex-direction:column;gap:8px}
+.clip{display:grid;grid-template-columns:minmax(0,1fr) 280px 360px;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+@media (max-width:980px){.clip{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.clip>div:last-child{grid-column:1/-1;justify-content:flex-start!important}}
+@media (max-width:640px){.clip{grid-template-columns:1fr}}
+a.btn{text-decoration:none}
+.clip b{display:block;font-size:.92rem}
+.clip small{color:var(--muted);font-size:.8rem;word-break:break-word}
+.clip .ok{color:var(--good);font-weight:600}
+.clip .row{gap:6px}
+.clip input[type=number]{width:64px;font:500 .9rem var(--f-mono);padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.filebtn{position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.btn.sm{padding:6px 10px;font-size:.82rem}
+.btn.playing{background:var(--ball);color:var(--ball-ink);border-color:transparent}
+.eq{display:inline-flex;gap:2px;align-items:flex-end;height:12px}
+.eq i{width:3px;background:currentColor;animation:eq .8s infinite ease-in-out}
+.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
+@keyframes eq{0%,100%{height:3px}50%{height:12px}}
+@media (prefers-reduced-motion:reduce){.eq i{animation:none;height:8px}}
+/* library */
+.lib{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:16px}
+@media (max-width:860px){.lib{grid-template-columns:1fr}}
+.lib .wide{grid-column:1/-1}
+.opt{display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.opt input{margin-top:3px;accent-color:var(--accent);flex:none;width:17px;height:17px}
+.opt b{display:block}
+.opt small{color:var(--muted);font-size:.8rem}
+.opt.sel{border-color:var(--accent)}
+.topics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-left:4px}
+@media (max-width:520px){.topics{grid-template-columns:1fr}}
+.topics.off{opacity:.45;pointer-events:none}
+.cnt{font-family:var(--f-mono);font-size:.75rem;color:var(--accent);font-variant-numeric:tabular-nums}
+.sum{font-weight:600;font-size:.92rem;padding:10px 12px;border-radius:10px;background:var(--chip)}
+.sum.bad{color:var(--warn)}
+.srclist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9rem}
+.srclist li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.srclist .tier{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+details.grp{border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+details.grp summary{cursor:pointer;padding:10px 12px;font-weight:700;display:flex;justify-content:space-between;gap:8px}
+details.grp .keywrap{border:0;border-radius:0 0 10px 10px}
+.src-line{font-size:.85rem;color:var(--stage-muted);font-family:var(--f-mono);letter-spacing:.02em}
+.grp table.key td:first-child{font-family:var(--f-body);color:var(--ink)}
+.srccell{color:var(--muted);font-size:.82rem;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){.answer{animation:pop .35s ease-out}@keyframes pop{from{opacity:.2;transform:translateY(6px)}to{opacity:1;transform:none}}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="minib" aria-hidden="true">B</div>
+      <div><h1>Coverage Bingo</h1><small>Host console for Thursday training · Host: Gordon · <span id="deckname"></span></small></div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-game" aria-selected="true" data-tab="game">Play</button>
+      <button role="tab" id="tab-guide" aria-selected="false" data-tab="guide">Host guide</button>
+      <button role="tab" id="tab-key" aria-selected="false" data-tab="key">Answer key</button>
+      <button role="tab" id="tab-lib" aria-selected="false" data-tab="lib">Question library</button>
+    </nav>
+  </header>
+
+  <!-- GAME -->
+  <section id="view-game" class="game">
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div class="stage" id="stage" aria-live="polite"></div>
+      <div class="controls">
+        <button class="btn" id="b-prev">Back <kbd>←</kbd></button>
+        <button class="btn" id="b-clip" hidden>Play clip <kbd>P</kbd></button>
+        <a class="btn" id="b-yt" hidden target="_blank" rel="noopener">Open clip on YouTube ↗ <kbd>P</kbd></a>
+        <button class="btn" id="b-song">Show song <kbd>S</kbd></button>
+        <button class="btn primary" id="b-reveal">Reveal answer <kbd>Space</kbd></button>
+        <button class="btn" id="b-next">Next call <kbd>→</kbd></button>
+        <button class="btn" id="b-tricky">Mark tricky <kbd>T</kbd></button>
+      </div>
+    </div>
+
+    <aside class="rail">
+      <div class="panel">
+        <h2>Progress</h2>
+        <div class="meter"><i id="meter"></i></div>
+        <p id="prog-text"></p>
+      </div>
+      <div class="panel">
+        <h2>Check a BINGO</h2>
+        <p>Type each square the player reads back.</p>
+        <div class="combo">
+          <div class="combo-field">
+            <input type="text" id="check" placeholder="Type or pick a square" autocomplete="off" role="combobox" aria-controls="combo-list" aria-expanded="false">
+            <button type="button" class="combo-toggle" id="combo-toggle" aria-label="Show all squares" aria-expanded="false">▾</button>
+          </div>
+          <ul class="combo-list" id="combo-list" role="listbox" hidden></ul>
+        </div>
+        <div class="check-out" id="check-out"></div>
+      </div>
+      <div class="panel">
+        <h2>Called so far</h2>
+        <div class="chips" id="called"></div>
+      </div>
+      <div class="panel">
+        <h2>Recap list</h2>
+        <p>Calls you marked tricky. Review these in the last 2 minutes.</p>
+        <div class="chips" id="tricky"></div>
+      </div>
+      <div class="panel">
+        <h2>Game settings</h2>
+        <label class="row" style="cursor:pointer"><input type="checkbox" id="jukebox" checked style="accent-color:var(--accent)"> Jukebox song clues</label>
+        <p id="juke-note" hidden>Song clues are only in the starter set.</p>
+        <p>To play different topics, use the Question library tab.</p>
+        <div class="row" id="reset-row">
+          <button class="btn warn" id="b-reset">New game (reshuffle)</button>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- GUIDE -->
+  <section id="view-guide" class="guide" hidden>
+    <div class="panel wide">
+      <h2>Run of show (about 40 min)</h2>
+      <table class="ros">
+        <tr><td>0:00</td><td>Welcome, check everyone has their card open. Read the rules script.</td></tr>
+        <tr><td>0:05</td><td>Play. Read the scenario, give 10 to 15 seconds, reveal the answer and the why. Mark anything that stumped the room as tricky.</td></tr>
+        <tr><td>~0:25</td><td>First BINGO. Player reads back squares and explains each one. Check them in the console.</td></tr>
+        <tr><td>0:30</td><td>If time allows, keep going toward a full card.</td></tr>
+        <tr><td>0:35</td><td>Two-minute recap of the tricky calls. Announce the winner and prize.</td></tr>
+      </table>
+    </div>
+    <div class="panel wide">
+      <h2>Song clues</h2>
+      <p>Every question has an <b>Open clip on YouTube</b> button (or press P). It opens the song's official video at the chorus in a new tab. Play about 10 seconds, pause it, and come back to this tab. Because the clip opens in a new tab, share your <b>entire screen</b> with <b>"Share computer sound"</b> turned on.</p>
+    </div>
+    <div class="panel wide">
+      <h2>Rules script for Gordon to read</h2>
+      <div class="script" id="rules">Welcome to Coverage Bingo! Here's how it works.
+
+I'll read a short claim story. Your job is to figure out which coverage, form, or term handles it, then tap that square on your card.
+
+After each one, I'll give you the answer and a quick reason why, so even if you miss it, you'll learn it.
+
+When you get five in a row, type BINGO in the chat and unmute. Then read me your squares. Here's the catch: you have to explain each one to win.
+
+Some rounds come with a song clip that hints at the answer. Listen closely.
+
+Winner gets [prize]. Ready? Let's play.</div>
+      <div class="copyrow"><button class="btn" data-copy="rules">Copy script</button></div>
+    </div>
+    <div class="panel">
+      <h2>Invite message (send today)</h2>
+      <div class="script" id="invite">Hi team! Tomorrow's Thursday training is a little different: we're playing Coverage Bingo.
+
+Your bingo card is attached (Card [number]).
+
+Print it, or open it on your phone or a second screen before the call. You'll mark squares as Gordon reads claim scenarios. Five in a row wins [prize], but you'll need to explain your squares to claim it.
+
+See you there!</div>
+      <div class="copyrow"><button class="btn" data-copy="invite">Copy invite</button></div>
+    </div>
+  </section>
+
+  <!-- KEY -->
+  <section id="view-key" hidden>
+    <div class="keywrap">
+      <table class="key">
+        <thead><tr><th>#</th><th>Square</th><th>Scenario</th><th>Why (host note)</th><th>Song clue</th><th>Source</th></tr></thead>
+        <tbody id="keybody"></tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:10px">Numbers follow the current game's call order. In the starter set, 22 song clues and 8 "why" notes were added for this console; the proposal listed 8 songs and no notes for them.</p>
+  </section>
+
+  <!-- LIBRARY -->
+  <section id="view-lib" class="lib" hidden>
+    <div class="panel">
+      <h2>Build a game</h2>
+      <p>Choose where the calls come from. Every call is drawn from the training documents listed on the right.</p>
+      <label class="opt" id="opt-starter"><input type="radio" name="mode" value="starter" id="m-starter"><span><b>Starter set</b><small>The 30 terms from Katie's proposal, with song clues. Use this if your cards are already made.</small></span></label>
+      <label class="opt" id="opt-library"><input type="radio" name="mode" value="library" id="m-library"><span><b>Training library</b><small>Pick one or more topics below. Duplicate terms across topics are merged into one square.</small></span></label>
+      <div class="topics" id="topic-list"></div>
+      <div class="sum" id="build-sum"></div>
+      <div class="row" id="build-row"><button class="btn primary" id="b-build">Start this game</button></div>
+      <p class="note">Starting a game clears the current one. A library game uses different squares, so ask Claude to make new bingo cards for it before you play.</p>
+    </div>
+    <div class="panel">
+      <h2>Source documents</h2>
+      <ul class="srclist" id="srclist"></ul>
+      <p class="note">Email &amp; Document Standards 2026 is a writing guide, not a coverage topic, so it isn't used for bingo calls.</p>
+    </div>
+    <div class="panel wide">
+      <h2>Every question in the library</h2>
+      <p>Use this to review calls before a game. Each one is written from the document it came from.</p>
+      <div id="lib-groups" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const STARTER=[
+{t:"Business Income",s:"A kitchen fire closes the client's restaurant for three weeks. What pays the lost profits?",w:"Replaces lost income and ongoing expenses while a covered property loss keeps the business closed.",song:"Burning Down the House",artist:"Talking Heads"},
+{t:"General Liability",s:"A customer slips on a wet floor in the client's store.",w:"Covers injury to a third party on the business's premises.",song:"Slip Slidin' Away",artist:"Paul Simon"},
+{t:"Hired & Non-Owned Auto",s:"An employee driving their own car to the bank rear-ends someone.",w:"The business isn't the vehicle owner, so its own auto policy may not respond. HNOA covers the business's liability.",song:"Highway to Hell",artist:"AC/DC"},
+{t:"Crime / Fidelity",s:"The bookkeeper has been writing checks to herself for a year.",w:"Employee theft isn't a property loss. Crime coverage pays for money stolen by employees.",song:"Smooth Criminal",artist:"Michael Jackson"},
+{t:"Equipment Breakdown",s:"The boiler fails and floods the basement.",w:"Mechanical and electrical breakdown is excluded on standard property forms.",song:"Under Pressure",artist:"Queen & David Bowie"},
+{t:"Professional / E&O",s:"A consultant's bad recommendation costs their client $80,000.",w:"Covers financial harm from professional advice or services. GL doesn't cover this.",song:"Oops!... I Did It Again",artist:"Britney Spears"},
+{t:"Workers' Comp",s:"A warehouse worker hurts their back lifting a pallet.",w:"Pays medical bills and lost wages for employees hurt on the job.",song:"Working for the Weekend",artist:"Loverboy"},
+{t:"Cyber",s:"Ransomware locks the client out of every system.",w:"Covers extortion, data restoration, and lost income from a cyber attack.",song:"Mr. Roboto",artist:"Styx"},
+{t:"Products-Completed Operations",s:"Six months after a plumber finishes a job, a fitting they installed bursts and floods the unit.",w:"The damage happened after the work was done and away from their premises.",song:"Leaving on a Jet Plane",artist:"Peter, Paul and Mary"},
+{t:"Commercial Auto",s:"A company-owned van runs a red light and hits another car.",w:"The vehicle is owned by the business, so the business auto policy responds.",song:"Drive My Car",artist:"The Beatles"},
+{t:"Umbrella / Excess",s:"A jury awards $3M after a truck accident, and the auto policy pays its $1M limit. What pays the rest?",w:"Sits over the underlying limits and picks up where they stop.",song:"Umbrella",artist:"Rihanna"},
+{t:"EPLI",s:"A former employee sues, saying she was fired for reporting harassment.",w:"Retaliation, harassment, and wrongful termination are employment practices claims, excluded under GL.",song:"9 to 5",artist:"Dolly Parton"},
+{t:"D&O",s:"Shareholders sue the board for approving a merger that wiped out the company's value.",w:"Covers decisions made by directors and officers in their management roles.",song:"Takin' Care of Business",artist:"Bachman-Turner Overdrive"},
+{t:"Inland Marine",s:"A contractor's $40,000 excavator is stolen from a job site.",w:"Covers property that moves around, like contractor's equipment.",song:"On the Road Again",artist:"Willie Nelson"},
+{t:"Builder's Risk",s:"A storm tears the roof off a building that's still under construction.",w:"Covers the structure and materials during construction.",song:"We Built This City",artist:"Starship"},
+{t:"Pollution Liability",s:"A restoration contractor disturbs mold, and it spreads through the building's HVAC system.",w:"Mold and pollutants are excluded under most GL policies.",song:"Toxic",artist:"Britney Spears"},
+{t:"Liquor Liability",s:"A bar keeps serving a visibly drunk patron, who then causes a crash.",w:"GL excludes this for businesses that sell or serve alcohol.",song:"Red Red Wine",artist:"UB40"},
+{t:"Product Recall",s:"A food maker finds possible contamination and pulls 10,000 units from store shelves.",w:"Pays to retrieve and destroy the product, which GL excludes.",song:"Return to Sender",artist:"Elvis Presley"},
+{t:"Motor Truck Cargo",s:"A trailer rolls over and the customer's shipment of electronics is destroyed.",w:"Covers the trucker's liability for goods in its care while in transit.",song:"Convoy",artist:"C.W. McCall"},
+{t:"Ordinance or Law",s:"After a fire, the city requires the rebuild to meet current code, adding $200,000.",w:"Standard property forms don't pay the extra cost of code upgrades.",song:"I Fought the Law",artist:"The Clash"},
+{t:"Additional Insured",s:"The general contractor wants protection under the sub's GL policy for claims from the sub's work.",w:"Extends the sub's policy to the GC for that work.",song:"Stand by Me",artist:"Ben E. King"},
+{t:"Waiver of Subrogation",s:"The contract says the sub's insurer can't go after the owner to recover a claim it paid.",w:"The insurer gives up its right to recover from that party.",song:"Let It Go",artist:"Idina Menzel"},
+{t:"Primary & Non-Contributory",s:"The contract says the sub's policy pays first and the GC's own policy isn't touched.",w:"Sets the order in which policies respond.",song:"Leader of the Pack",artist:"The Shangri-Las"},
+{t:"Contractual Liability",s:"The client signed a lease agreeing to cover the landlord for injuries on the premises.",w:"GL covers liability assumed under an \"insured contract.\"",song:"Signed, Sealed, Delivered I'm Yours",artist:"Stevie Wonder"},
+{t:"Hired Auto Physical Damage",s:"An employee wrecks a rental car on a business trip. What pays for the rental itself?",w:"Hired Auto liability covers others; this covers damage to the rented vehicle.",song:"Fast Car",artist:"Tracy Chapman"},
+{t:"Certificate of Insurance",s:"A new customer won't let the client on site until they see proof of coverage.",w:"A snapshot of coverage. It doesn't change or add coverage.",song:"U Can't Touch This",artist:"MC Hammer"},
+{t:"Deductible / SIR",s:"The client has to pay the first $25,000 of a claim before the insurer steps in.",w:"With an SIR, the insured pays and handles the claim up to that amount. With a deductible, the insurer handles the claim and the insured's share is subtracted or billed back.",song:"Money (That's What I Want)",artist:"Barrett Strong"},
+{t:"Claims-Made",s:"The policy only responds if the claim is first made during the policy period.",w:"Watch retro dates and tail coverage when switching carriers.",song:"Right Here, Right Now",artist:"Jesus Jones"},
+{t:"Occurrence",s:"An injury happened in 2023, the lawsuit arrives in 2026, and the 2023 policy responds.",w:"The policy in force when the injury happened responds, whenever the claim comes in.",song:"Back in Time",artist:"Huey Lewis and the News"},
+{t:"Coinsurance",s:"The client insured the building for 60% of its value, and a partial loss payout gets cut.",w:"Underinsuring triggers a penalty under the coinsurance clause.",song:"Livin' on a Prayer",artist:"Bon Jovi"}
+].map(c=>({...c,src:"starter"}));
+/* ===== TRAINING LIBRARY: every call below is drawn from The Coyle Group training documents ===== */
+const TOPICS=[
+ {k:"starter",name:"Coverage Bingo starter set",doc:"Coverage Bingo proposal (Katie)",tier:"Starter"},
+ {k:"auto",name:"Commercial Auto",doc:"Coverage Reference Card 4 of 12",tier:"Tier 1"},
+ {k:"property",name:"Commercial Property",doc:"Coverage Reference Card 2 of 6",tier:"Tier 1"},
+ {k:"cyber",name:"Cyber Liability",doc:"Coverage Reference Card 7 of 12",tier:"Tier 1"},
+ {k:"eo",name:"Professional Liability (E&O)",doc:"Coverage Reference Card 6 of 12",tier:"Tier 1"},
+ {k:"umbrella",name:"Umbrella & Excess",doc:"Coverage Reference Card 5 of 12",tier:"Tier 1"},
+ {k:"prosvc",name:"Professional Services",doc:"Industry Module 8",tier:"Tier 2"},
+ {k:"tech",name:"Technology & SaaS",doc:"Industry Module 9",tier:"Tier 2"}
+];
+const LIB=[
+/* Commercial Auto, Card 4 */
+{src:"auto",t:"Hired & Non-Owned Auto",s:"A consulting firm owns no vehicles. A consultant drives her own car to a client site and causes a multi-car crash with $800,000 in injuries. Her personal policy only has $100K/$300K limits.",w:"The employer carries vicarious liability when employees drive their own cars for work. HNOA (Symbol 9) covers it, often for under $1,000 a year."},
+{src:"auto",t:"Symbol 7 (Specifically Described Autos)",s:"A plumber buys a new service van and puts it straight to work. Nobody reports it for six weeks, it crashes in week five, and the carrier denies the claim.",w:"Symbol 7 only covers vehicles listed on the policy. The 30-day window for newly acquired autos had run out."},
+{src:"auto",t:"Symbol 1 (Any Auto)",s:"Which covered auto symbol is the broadest, covering any auto the business owns, rents, or borrows?",w:"Symbol 1 is the most favorable for the insured. Symbol 2 is owned only, 8 is hired only, 9 is non-owned only."},
+{src:"auto",t:"Uninsured / Underinsured Motorist",s:"An employee driving the company car is badly hurt when a driver with no insurance runs a red light.",w:"UM/UIM covers the insured's people when the at-fault driver has no or too little insurance. Limits should match or come close to the liability limits."},
+{src:"auto",t:"Comprehensive",s:"A hailstorm dents every truck parked in the client's lot overnight.",w:"Comprehensive covers damage from causes other than collision: theft, vandalism, hail, flood, fire, animal strikes."},
+{src:"auto",t:"Collision",s:"A company pickup slides on ice and hits a guardrail. What pays to fix the pickup?",w:"Collision covers damage from hitting another vehicle or object, regardless of fault, subject to a deductible."},
+{src:"auto",t:"Medical Payments",s:"A customer riding in the company car gets minor injuries in a fender-bender. A small coverage pays their medical bills no matter who was at fault.",w:"Med Pay pays occupants' medical bills regardless of fault. Small limit, but it closes minor claim gaps."},
+{src:"auto",t:"Fellow Employee Exclusion",s:"An employee is hurt when a coworker driving the company truck crashes during a job. The auto policy won't pay because of this exclusion.",w:"One employee injured by another's driving at work is a workers comp claim. The BAP excludes it unless the exclusion is removed by endorsement."},
+{src:"auto",t:"Inland Marine",s:"A distributor's truck crashes and the product it was delivering is destroyed. The auto policy fixes the truck. What covers the goods?",w:"Commercial auto covers the vehicle, not what's inside it. Goods in transit need inland marine or cargo coverage."},
+
+/* Commercial Property, Card 2 */
+{src:"property",t:"Business Income",s:"A fire shuts a restaurant down for three months. What pays the lost profits plus the payroll, rent, and loan payments that keep coming due?",w:"Business Income replaces lost net income and continuing expenses during the period of restoration after a covered property loss."},
+{src:"property",t:"12-Month ALS (BOP)",s:"A distributor's warehouse burns down. Its BOP pays actual business income losses, but the rebuild takes 16 months and the payments stop at month 12.",w:"Most BOPs pay Actual Loss Sustained with a 12-month maximum. Serious losses for manufacturers and distributors often take 18 to 24 months."},
+{src:"property",t:"Business Income Worksheet",s:"A manufacturer picked a $500,000 business income limit because it felt like a nice round number. A fire causes $1.4M in lost income and expenses. What should have been used to set the limit?",w:"A BI worksheet builds the limit from gross earnings, a realistic worst-case restoration period, continuing expenses, and extra expense. A round number is a guess."},
+{src:"property",t:"Extra Expense",s:"After a fire, the client rents a temporary warehouse and pays to rush-order equipment so it can reopen faster.",w:"Extra Expense pays the added costs to keep operating or shorten the shutdown. A rough guide is about 10% of the BI limit."},
+{src:"property",t:"Extended Period of Indemnity",s:"The restaurant finally reopens after the fire, but it takes months for regular customers to come back. What helps with the income shortfall after reopening?",w:"It keeps paying lost income for a set time after repairs are done, while the business rebuilds its cash flow."},
+{src:"property",t:"Replacement Cost Value",s:"A storm destroys ten-year-old office furniture. The policy pays for brand-new furniture of like kind and quality, with no deduction for age.",w:"Replacement cost pays to repair or replace with new property, no depreciation. It's the right standard for most commercial accounts."},
+{src:"property",t:"Actual Cash Value",s:"Same storm, but this policy subtracts depreciation from the payout, so the client gets far less for its older property.",w:"ACV is replacement cost minus depreciation. Sometimes used in E&S placements where values are hard to pin down."},
+{src:"property",t:"Agreed Value",s:"The client and carrier settle on the building's value up front, which suspends the coinsurance clause. It only holds up if the statement of values stays current.",w:"Agreed Value removes the coinsurance penalty, but an outdated SOV can void it at claim time."},
+{src:"property",t:"Functional Replacement Cost",s:"A historic building is damaged. Restoring the original plaster and hand-carved trim isn't practical, so the policy pays to rebuild with modern materials that do the same job.",w:"It settles on a functionally equivalent rebuild, not an identical restoration. Common for older or historic buildings."},
+{src:"property",t:"Special Form (Causes of Loss)",s:"The causes-of-loss form on most well-built programs: every cause of loss is covered unless it's specifically excluded.",w:"Special Form is open perils. Basic and Broad forms only cover the perils they name."},
+{src:"property",t:"Ordinance or Law",s:"A 20-year-old building burns down. The city makes the owner rebuild with upgraded electrical, HVAC, and plumbing to meet current code.",w:"Standard property doesn't pay for code upgrades. For buildings over 10 to 15 years old, this coverage isn't optional."},
+{src:"property",t:"Equipment Breakdown",s:"A manufacturer's main compressor fails from an internal mechanical breakdown and the production line stops. The property carrier says it's not a covered loss.",w:"Property covers outside causes like fire and wind, not mechanical or electrical failure inside the equipment. Equipment Breakdown fills that gap."},
+{src:"property",t:"Flood Coverage",s:"Heavy rain makes a nearby creek overflow into a client's warehouse. They're not in a flood zone, so they never bought extra coverage. The property policy denies the claim.",w:"Flood is excluded from all standard commercial property forms. It needs a separate NFIP or private flood policy, even outside flood zones."},
+{src:"property",t:"Vacancy Clause",s:"A tenant moved out 75 days ago and the building has been sitting empty. Vandals break in and wreck it, and some of the coverage is suspended.",w:"Most property forms suspend or limit coverage once a building has been vacant more than 60 consecutive days."},
+{src:"property",t:"Tenant Improvements & Betterments",s:"A tech company spent $300,000 building out its leased office. After a fire, it learns the landlord's policy doesn't cover the buildout.",w:"The tenant owns its improvements and has to insure them. The landlord's policy covers the landlord's building only."},
+{src:"property",t:"Inland Marine",s:"A distributor's product is damaged at a trade show booth, away from its insured location.",w:"Standard property covers the listed premises. Property in transit, at job sites, or at trade shows needs inland marine."},
+{src:"property",t:"Accounts Receivable / Valuable Papers",s:"A fire destroys an accounting firm's records, and it can't prove what its clients owe. What coverage helps restore the records and the uncollectible receivables?",w:"Standard property gives little or no coverage for records and receivables. Separate inland marine coverage is available."},
+{src:"property",t:"Coinsurance",s:"The client insured the building for 60% of its value. After a partial loss, the payout gets cut.",w:"Underinsuring triggers the coinsurance penalty. Values set in 2020 or 2021 may be 20 to 40% short today."},
+
+/* Cyber Liability, Card 7 */
+{src:"cyber",t:"Breach Response Costs",s:"A breach exposes 5,000 customer records. The client needs forensics, a lawyer, notification letters, credit monitoring, and a call center.",w:"First-party breach response pays these immediate costs, which add up fast even for a small breach."},
+{src:"cyber",t:"Ransomware / Cyber Extortion",s:"Attackers lock a manufacturer's systems on a Friday afternoon and demand $350,000 in cryptocurrency.",w:"Cyber extortion pays the ransom, negotiators, and forensics. In our reference case, GL and property both denied, and the total cost topped $600,000."},
+{src:"cyber",t:"Data Recovery",s:"After an attack, the client's files are corrupted and have to be restored or recreated from scratch.",w:"Pays to restore, recreate, or recover data destroyed, corrupted, or encrypted in a cyber event."},
+{src:"cyber",t:"Cyber Business Interruption",s:"A network attack knocks an online store offline for four days. No building was damaged, but sales stopped.",w:"Property BI needs physical damage. Cyber BI covers lost income from a network outage caused by a cyber event."},
+{src:"cyber",t:"Social Engineering / Funds Transfer Fraud",s:"A controller gets a convincing email that looks like it's from the managing partner and wires $475,000 to a fake vendor.",w:"One of the most common cyber losses. In our reference case the sublimit was only $100,000, leaving $375,000 uninsured."},
+{src:"cyber",t:"Privacy Liability",s:"Customers sue the client for failing to protect their personal and payment information after a breach.",w:"Third-party privacy liability covers defense and damages for failing to protect personal data."},
+{src:"cyber",t:"Network Security Liability",s:"A virus spreads from the client's network into a customer's system through their connection, and the customer sues.",w:"Covers claims when the insured's security failure harms a third party."},
+{src:"cyber",t:"Regulatory Proceedings",s:"After a breach, a state regulator opens an investigation under privacy law and proposes fines.",w:"Covers fines, penalties, and defense for regulatory actions after a breach, such as HIPAA or state privacy laws."},
+{src:"cyber",t:"Media Liability",s:"A company's blog post is accused of defaming a competitor and using copyrighted photos without permission.",w:"Media liability covers defamation, copyright infringement, and invasion of privacy through digital content."},
+{src:"cyber",t:"Dependent Business Interruption",s:"The client's cloud provider goes down for three days. The client's own systems are fine, but it can't operate.",w:"Covers income lost to an outage at a vendor the business depends on. Many forms exclude it unless it's endorsed."},
+{src:"cyber",t:"War Exclusion",s:"A state-sponsored hacking group attacks the client, and the carrier points to this exclusion.",w:"Cyber war exclusions have broadened and vary widely by carrier. Explain it to the client and document it."},
+{src:"cyber",t:"Consent Requirement (Voluntary Payment)",s:"The client panics and pays the ransom before calling the carrier. Now reimbursement is in doubt.",w:"Paying without notifying the carrier and getting consent can void reimbursement. Prompt notice is critical."},
+{src:"cyber",t:"Prior Known Events Exclusion",s:"The client noticed suspicious activity in March, bought a cyber policy in April, and reported the breach in May.",w:"Cyber policies exclude events the insured knew about or suspected before the policy started."},
+{src:"cyber",t:"Silent Cyber",s:"An older GL policy doesn't mention cyber at all, so the client assumes it covers a data breach.",w:"GL almost certainly won't respond to a breach. A standalone cyber policy removes the ambiguity."},
+
+/* Professional Liability (E&O), Card 6 */
+{src:"eo",t:"Professional / E&O",s:"A consulting firm's supply chain advice causes a client $2.1M in losses. The firm only has GL.",w:"E&O covers financial harm from professional services. The firm in our reference case settled for $1.4M out of pocket."},
+{src:"eo",t:"Professional Services Exclusion (GL)",s:"An accountant misses a client's filing deadline. The client sues, and the GL carrier denies by pointing to a clause on the CGL form.",w:"The CGL's professional services exclusion is absolute. Professional mistakes belong on E&O."},
+{src:"eo",t:"Claims-Made",s:"The policy only responds if the claim is first made during the policy period and the work was done after a set date.",w:"Both conditions must be met: the claim is made during the policy period, and the act happened on or after the retro date."},
+{src:"eo",t:"Retroactive Date",s:"An architecture firm switches E&O carriers after 15 years. The new policy only covers work from today forward. Eight months later, a claim arrives from a project done three years ago.",w:"The retro date is the most important date on a claims-made policy. Protect it at every carrier change, or buy tail on the old policy."},
+{src:"eo",t:"Tail (Extended Reporting Period)",s:"An engineer retires and closes her firm. Two years later, a former client sues over a design she did before retiring.",w:"Tail extends the time to report claims for past work after a claims-made policy ends. It usually costs 100 to 200% of the annual premium."},
+{src:"eo",t:"Defense Inside Limits (Eroding)",s:"A firm has a $1M E&O limit. Legal fees on a complex claim reach $400,000, leaving only $600,000 for the settlement.",w:"On an eroding form, defense costs use up the limit. Firms with high-value work should consider higher limits or a non-eroding form."},
+{src:"eo",t:"Hammer Clause",s:"The carrier recommends settling. The insured refuses, the case goes to trial, and the award is much higher. The insured has to pay the difference.",w:"The hammer clause limits the carrier's liability if the insured refuses a settlement the carrier recommends."},
+{src:"eo",t:"Consent to Settle",s:"A design firm worried about its reputation wants the right to approve or reject any settlement before it's agreed.",w:"Consent to settle gives the insured a say in settlements, which matters to firms protecting their reputation."},
+{src:"eo",t:"Insured vs. Insured Exclusion",s:"Two partners break up their firm and one sues the other. The E&O policy won't respond.",w:"Claims between people insured on the same policy are commonly excluded, which matters when partnerships dissolve."},
+
+/* Umbrella & Excess, Card 5 */
+{src:"umbrella",t:"Excess (Follow Form)",s:"The dec page says 'umbrella,' but the form strictly follows the underlying policies, with no drop-down and no broader coverage.",w:"Excess adds limits only. A true umbrella can also broaden coverage and drop down. Read the form, not the title."},
+{src:"umbrella",t:"Drop-Down Coverage",s:"The GL aggregate is $2M, and three claims this year total $2.5M. What pays the last $500,000?",w:"A true umbrella drops down when an underlying aggregate is used up. An excess policy doesn't."},
+{src:"umbrella",t:"Self-Insured Retention (SIR)",s:"The umbrella covers a claim the GL doesn't, but the client has to pay the first $25,000 itself.",w:"SIRs usually run $10,000 to $25,000 and only apply when the umbrella drops down."},
+{src:"umbrella",t:"Schedule of Underlying Insurance",s:"The umbrella requires $1M underlying auto, but the client only carries $500,000. After a $1.8M crash, the client pays a $500,000 gap out of pocket.",w:"Underlying limits are a contract requirement. Check them against the umbrella at every renewal."},
+{src:"umbrella",t:"Employers Liability (Part B)",s:"An injured worker sues a general contractor, which then sues the employer in a third-party-over action. The umbrella sits over this part of the comp policy.",w:"The umbrella sits over employers liability (Part B), not statutory comp benefits (Part A)."},
+{src:"umbrella",t:"Excess E&O",s:"An IT firm's configuration error causes $4.2M in losses. Its E&O pays $2M, and the $5M umbrella denies the rest.",w:"Most umbrellas exclude professional liability. A firm that needs more E&O limit needs a separate excess E&O policy."},
+
+/* Professional Services, Industry Module 8 */
+{src:"prosvc",t:"Definition of Professional Services",s:"A management consulting firm started offering IT implementation. Its E&O policy only lists management consulting, and a claim comes in on an IT project.",w:"This definition can be the hinge of the whole policy. Make sure it's broad enough to cover every service the client performs."},
+{src:"prosvc",t:"D&O",s:"Three partners run a consulting firm. An investor sues them, saying their management decisions destroyed the firm's value.",w:"D&O covers management decisions. It's needed once a firm has partners, investors, or a board."},
+{src:"prosvc",t:"EPLI",s:"An employee at a 25-person firm is passed over for promotion and sues for discrimination.",w:"Employment claims are common at professional firms. E&O and umbrella policies both exclude them."},
+{src:"prosvc",t:"Hired & Non-Owned Auto",s:"A 30-person firm owns no cars, but its employees drive their own to client meetings and the airport every week.",w:"That's vicarious auto liability for the firm. HNOA closes the gap."},
+
+/* Technology & SaaS, Industry Module 9 */
+{src:"tech",t:"Professional / E&O",s:"A software developer ships a faulty update that takes a client's system down, and the client sues for its losses.",w:"Tech E&O covers the professional service failure: bad code, faulty implementation, downtime that harms a client. Pair it with cyber."},
+{src:"tech",t:"D&O",s:"A SaaS company raised a $3M Series A. Investors sue the board after the company misses its growth targets.",w:"Investor lawsuits after disappointing performance are common in tech. D&O is core once there's funding or a board."},
+{src:"tech",t:"Media Liability",s:"A platform hosts a user's post that defames a local business, and the business sues the platform.",w:"If a company publishes or hosts content, media liability is an exposure."},
+{src:"tech",t:"IP Indemnification",s:"A SaaS contract says the vendor must defend its customer if anyone claims the software infringes a patent.",w:"This exposure often isn't covered without a specific endorsement. Check key contracts against the E&O terms."},
+{src:"tech",t:"Dependent Business Interruption",s:"AWS has a multi-day outage, and a SaaS platform built on it goes down too.",w:"Dependent BI covers revenue lost to someone else's outage. Evaluate it for every cloud dependency."},
+{src:"tech",t:"Cyber Business Interruption",s:"A DDoS attack takes a SaaS platform offline for two days. Nothing physical was damaged.",w:"For a SaaS company, this is the business interruption exposure that matters. Property BI won't respond."},
+{src:"tech",t:"Client-Base Aggregation",s:"Ransomware gets into an MSP through its remote monitoring tool and hits 40 client environments at once. What do the MSP's limits need to account for?",w:"One event can hit every client at once. MSP limits have to contemplate the whole downstream book, not one account."},
+{src:"tech",t:"SLA Penalties",s:"A SaaS company promised 99.9% uptime, missed it, and owes clients contract credits. Insurance usually won't pay these.",w:"Contractual service-level penalties are usually uninsured, so review uptime commitments at renewal."}
+];
+
+
+const PREP=[
+ ["Isabella","Confirm Gordon is hosting and share this console link with him."],
+ ["Isabella","Send each person one card PDF (Card 1 to 30) and note who has which card."],
+ ["Isabella","Fill in the invite with the card number and prize, then send it with the card today."],
+ ["Isabella","Pick the prize (small coffee or lunch e-gift card, or winner picks next month's topic)."],
+ ["Gordon","Read through the Answer key once so every 'why' is comfortable to say out loud."],
+ ["Gordon","Skim the song list in the Answer key so the song clues aren't a surprise (or turn Jukebox off)."],
+ ["Gordon","Do a 2-minute test: share your entire screen with computer sound on, open one clip, come back, click Show song and Reveal."],
+ ["Gordon","Open this console in the browser you'll share tomorrow. Have the chat visible for BINGO calls."]
+];
+
+const $=s=>document.querySelector(s);
+const KEY="cbingo-v2";
+const topicOf=k=>TOPICS.find(t=>t.k===k);
+function buildCalls(deck){
+  if(!deck||deck.mode!=="library") return STARTER.map(c=>({...c}));
+  const by={};LIB.filter(e=>deck.topics.includes(e.src)).forEach(e=>(by[e.t]=by[e.t]||[]).push(e));
+  return Object.values(by).map(a=>({...a[Math.floor(Math.random()*a.length)]}));
+}
+function uniqueCount(topics){return new Set(LIB.filter(e=>topics.includes(e.src)).map(e=>e.t)).size}
+function deckName(d){return !d||d.mode!=="library"?"Starter set":"Library: "+d.topics.map(k=>topicOf(k).name).join(", ")}
+function migrate(){try{const v=JSON.parse(localStorage.getItem("cbingo-v1"));if(v&&v.order&&v.order.length===STARTER.length){return{deck:{mode:"starter",topics:[]},calls:STARTER.map(c=>({...c})),order:v.order,idx:v.idx||0,revealed:v.revealed||[],song:false,tricky:v.tricky||[],jukebox:v.jukebox!==false,prep:v.prep||[]}}}catch(e){}return null}
+let S=load()||migrate()||fresh();
+let CALLS=S.calls;
+
+function shuffle(n){const a=[...Array(n).keys()];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function fresh(deck,prep,jukebox){deck=deck||{mode:"starter",topics:[]};const calls=buildCalls(deck);return{deck,calls,order:shuffle(calls.length),idx:0,revealed:[],song:false,tricky:[],jukebox:jukebox!==false,prep:prep||[]}}
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY));return v&&v.calls&&v.calls.length&&v.order&&v.order.length===v.calls.length?v:null}catch(e){return null}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+const cur=()=>CALLS[S.order[S.idx]];
+const isRev=()=>S.revealed.includes(S.order[S.idx]);
+const esc=t=>t.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function render(){
+  const c=cur(), rev=isRev(), n=S.idx+1;
+  const hasSong=S.jukebox&&c.song;
+  let h=`<div class="stage-head"><div class="ball"><span>${n}</span></div><div><div class="callof">Call ${n} of ${CALLS.length}</div>${hasSong?'<span class="tag">Jukebox round</span>':''}</div></div>`;
+  h+=`<p class="scenario">${esc(c.s)}</p>`;
+  if(hasSong) h+= (S.song||rev)?`<div class="song">Song clue: "${esc(c.song)}"${c.artist?' · '+esc(c.artist):''}</div>`:(CLIPS[c.song]?`<div class="waiting">Press Play clip, then Show song.</div>`:ytId(c.song)?`<div class="waiting">Open the clip on YouTube, play about 10 seconds, come back, then click Show song.</div>`:`<div class="waiting">Play the song clip, then click Show song.</div>`);
+  h+= rev?`<div class="answer"><span class="lbl">Answer</span><span class="term">${esc(c.t)}</span><span class="why">${esc(c.w)}</span><span class="src-line">From: ${esc(topicOf(c.src).name)} · ${esc(topicOf(c.src).doc)}</span></div>`:`<div class="waiting">Mark your card. Answer coming up.</div>`;
+  $("#stage").innerHTML=h;
+  $("#b-prev").disabled=S.idx===0;
+  $("#b-next").disabled=S.idx===CALLS.length-1;
+  $("#b-song").disabled=!hasSong||S.song||rev;
+  const hasClip=hasSong&&!!CLIPS[c.song];
+  $("#b-clip").hidden=!hasClip;
+  const yt=hasSong&&!hasClip?ytUrl(c.song):null;
+  $("#b-yt").hidden=!yt; if(yt)$("#b-yt").href=yt;
+  if(!hasClip&&PLAYING)stopClip();
+  $("#b-reveal").disabled=rev;
+  const tr=S.tricky.includes(S.order[S.idx]);
+  $("#b-tricky").classList.toggle("on",tr);
+  $("#b-tricky").firstChild.textContent=tr?"Tricky ✓ ":"Mark tricky ";
+  const k=S.revealed.length;
+  $("#meter").style.width=(k/CALLS.length*100)+"%";
+  $("#prog-text").textContent=`${k} of ${CALLS.length} answers revealed.`;
+  const called=S.order.filter(i=>S.revealed.includes(i)).map(i=>CALLS[i].t).sort();
+  $("#called").innerHTML=called.length?called.map(t=>`<span class="chip hit${S.tricky.includes(CALLS.findIndex(x=>x.t===t))?' tricky':''}">${esc(t)}</span>`).join(""):'<p>None yet.</p>';
+  $("#tricky").innerHTML=S.tricky.length?S.tricky.map(i=>`<span class="chip tricky">${esc(CALLS[i].t)}</span>`).join(""):'<p>Nothing marked yet.</p>';
+  const starter=S.deck.mode!=="library";
+  $("#jukebox").checked=S.jukebox&&starter; $("#jukebox").disabled=!starter; $("#juke-note").hidden=starter;
+  $("#deckname").textContent=deckName(S.deck);
+  renderKey(); runCheck(); save();
+}
+function renderKey(){
+  $("#keybody").innerHTML=S.order.map((i,p)=>{const c=CALLS[i];return `<tr><td>${p+1}</td><td class="t">${esc(c.t)}</td><td>${esc(c.s)}</td><td>${esc(c.w)}</td><td class="songcell">${c.song?'"'+esc(c.song)+'"'+(c.artist?'<br><small style="font-weight:400;color:var(--muted)">'+esc(c.artist)+'</small>':''):''}</td><td class="srccell">${esc(topicOf(c.src).name)}</td></tr>`}).join("");
+}
+function runCheck(){
+  const v=$("#check").value.trim().toLowerCase(), out=$("#check-out");
+  if(!v){out.textContent="";out.className="check-out";return}
+  const i=CALLS.findIndex(c=>c.t.toLowerCase()===v);
+  if(i<0){const m=CALLS.filter(c=>c.t.toLowerCase().includes(v));out.className="check-out";out.textContent=m.length?"Did you mean: "+m.map(c=>c.t).join(", "):`Not one of the ${CALLS.length} squares in this game.`;return}
+  const ok=S.revealed.includes(i);
+  out.className="check-out "+(ok?"yes":"no");
+  out.textContent=ok?`Yes, ${CALLS[i].t} has been called.`:`No, ${CALLS[i].t} hasn't been called yet.`;
+}
+function reveal(){if(!isRev()){S.revealed.push(S.order[S.idx]);render()}}
+function next(){if(S.idx<CALLS.length-1){stopClip();S.idx++;S.song=false;render()}}
+function prev(){if(S.idx>0){stopClip();S.idx--;S.song=false;render()}}
+function song(){const c=cur();if(S.jukebox&&c.song){S.song=true;render()}}
+function tricky(){const i=S.order[S.idx];S.tricky=S.tricky.includes(i)?S.tricky.filter(x=>x!==i):[...S.tricky,i];render()}
+
+/* ---------- jukebox: YouTube links (per-browser) or local audio files (IndexedDB, played with Web Audio) ---------- */
+const CLIP_SECONDS=10, SONGS=STARTER.filter(c=>c.song);
+let CLIPS={}, ACTX=null, PLAYING=null, DECODED={};
+const CFGKEY="cbingo-clipcfg";
+const DEFAULT_CLIPS={"Burning Down the House": {"yt": "_3eC35LoF4U", "start": 30}, "Slip Slidin' Away": {"yt": "iUODdPpnxcA", "start": 13}, "Highway to Hell": {"yt": "l482T0yNkeo", "start": 52}, "Smooth Criminal": {"yt": "_mMyPJSx8RU", "start": 46}, "Under Pressure": {"yt": "a01QQZyl-_I", "start": 29}, "Oops!... I Did It Again": {"yt": "CduA0TULnow", "start": 86}, "Working for the Weekend": {"yt": "dsgBpsNPQ50", "start": 41}, "Mr. Roboto": {"yt": "uc6f_2nPSX8", "start": 44}, "Leaving on a Jet Plane": {"yt": "3yD0yQXfeac", "start": 39}, "Drive My Car": {"yt": "kfSQkZuIx84", "start": 20}, "Umbrella": {"yt": "CvBfHwUxHIk", "start": 72}, "9 to 5": {"yt": "UbxUSsFXYo4", "start": 28}, "Takin' Care of Business": {"yt": "sl7x4S_fLXU", "start": 60}, "On the Road Again": {"yt": "dBN86y30Ufc", "start": 6}, "We Built This City": {"yt": "K1b8AhIsSYQ", "start": 5}, "Toxic": {"yt": "LOZuxwVk7TU", "start": 56}, "Red Red Wine": {"yt": "zXt56MB-3vc", "start": 0}, "Return to Sender": {"yt": "LZmUfUBqE-s", "start": 1}, "Convoy": {"yt": "87r0CPQbFds", "start": 64}, "I Fought the Law": {"yt": "AL8chWFuM-s", "start": 24}, "Stand by Me": {"yt": "z5i9vT8wGY8", "start": 46}, "Let It Go": {"yt": "L0MK7qz13bU", "start": 58}, "Leader of the Pack": {"yt": "9TZsT69icAE", "start": 24}, "Signed, Sealed, Delivered I'm Yours": {"yt": "uEpEhyfaVbs", "start": 19}, "Fast Car": {"yt": "AIOAlaACuv4", "start": 22}, "U Can't Touch This": {"yt": "otCpCn0l4Wo", "start": 14}, "Money (That's What I Want)": {"yt": "96XJl7mxDtc", "start": 28}, "Right Here, Right Now": {"yt": "MznHdJReoeo", "start": 51}, "Back in Time": {"yt": "ur57IunS9To", "start": 63}, "Livin' on a Prayer": {"yt": "lDK9QqIzhwk", "start": 88}};
+let CFG=JSON.parse(JSON.stringify(DEFAULT_CLIPS));
+function isDefault(song){const d=DEFAULT_CLIPS[song],c=CFG[song];return d&&c&&c.yt===d.yt&&+c.start===+d.start}
+function saveCfg(){try{localStorage.setItem(CFGKEY,JSON.stringify(CFG))}catch(e){}}
+function cfg(song){return CFG[song]||(CFG[song]={yt:"",start:0})}
+function parseYt(v){v=(v||"").trim();const m=v.match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})/);if(m)return m[1];if(/^[\w-]{11}$/.test(v))return v;return ""}
+function ytId(song){return CFG[song]&&CFG[song].yt||""}
+function ytUrl(song){const id=ytId(song);if(!id)return null;const st=Math.max(0,Math.floor(+cfg(song).start||0));return `https://www.youtube.com/watch?v=${id}${st?`&t=${st}s`:""}`}
+function ytSearch(c){return "https://www.youtube.com/results?search_query="+encodeURIComponent(`${c.artist} ${c.song} official`)}
+function idb(){return new Promise((res,rej)=>{try{const r=indexedDB.open("cbingo-audio",1);r.onupgradeneeded=()=>r.result.createObjectStore("clips");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+async function idbAll(){try{const db=await idb();return await new Promise(res=>{const out={},tx=db.transaction("clips");const rq=tx.objectStore("clips").openCursor();rq.onsuccess=()=>{const cur=rq.result;if(cur){out[cur.key]=cur.value;cur.continue()}else res(out)};rq.onerror=()=>res(out)})}catch(e){return{}}}
+async function idbPut(k,v){try{const db=await idb();await new Promise(r=>{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").put(v,k);tx.oncomplete=r;tx.onerror=r})}catch(e){}}
+async function idbDel(k){try{const db=await idb();await new Promise(r=>{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").delete(k);tx.oncomplete=r;tx.onerror=r})}catch(e){}}
+function ctx(){if(!ACTX){const A=window.AudioContext||window.webkitAudioContext;ACTX=new A()}if(ACTX.state==="suspended")ACTX.resume();return ACTX}
+async function decode(song){if(DECODED[song])return DECODED[song];const buf=await ctx().decodeAudioData(CLIPS[song].buf.slice(0));DECODED[song]=buf;return buf}
+function stopClip(){if(!PLAYING)return;const p=PLAYING;PLAYING=null;try{const t=p.a.currentTime;p.g.gain.cancelScheduledValues(t);p.g.gain.setValueAtTime(p.g.gain.value,t);p.g.gain.linearRampToValueAtTime(0,t+.25);p.src.stop(t+.3)}catch(e){}clearTimeout(p.timer);clipUI()}
+function setStatus(song,msg){const st=document.querySelector(`[data-status="${CSS.escape(song)}"]`);if(st)st.textContent=msg}
+async function playClip(song){
+  if(PLAYING){const same=PLAYING.song===song;stopClip();if(same)return}
+  if(!CLIPS[song])return;
+  try{
+    const a=ctx(),buf=await decode(song);
+    let start=Math.max(0,+cfg(song).start||0);if(start>=buf.duration)start=Math.max(0,buf.duration-CLIP_SECONDS);
+    const len=Math.min(CLIP_SECONDS,buf.duration-start);
+    const src=a.createBufferSource(),g=a.createGain();src.buffer=buf;src.connect(g);g.connect(a.destination);
+    const t=a.currentTime;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(1,t+.3);g.gain.setValueAtTime(1,t+Math.max(.3,len-1));g.gain.linearRampToValueAtTime(0,t+len);
+    src.start(t,start,len);
+    PLAYING={song,src,g,a,timer:setTimeout(()=>{if(PLAYING&&PLAYING.src===src){PLAYING=null;clipUI()}},len*1000+100)};
+    src.onended=()=>{if(PLAYING&&PLAYING.src===src){PLAYING=null;clipUI()}};
+    clipUI();
+  }catch(e){setStatus(song,"This file couldn't be played. Try an MP3 or WAV.")}
+}
+function clipUI(){
+  const b=$("#b-clip");const c=cur();const on=PLAYING&&c&&PLAYING.song===c.song;
+  b.classList.toggle("playing",!!on);b.innerHTML=on?'<span class="eq"><i></i><i></i><i></i></span> Stop clip <kbd>P</kbd>':'Play clip <kbd>P</kbd>';
+  document.querySelectorAll("[data-preview]").forEach(x=>{const p=PLAYING&&PLAYING.song===x.dataset.preview;x.classList.toggle("playing",!!p);x.textContent=p?"Stop":"Play file"});
+}
+function statusText(song){const f=CLIPS[song],y=ytId(song);if(f&&y)return '<span class="ok">Ready:</span> file '+esc(f.name)+' (plays first) and YouTube link';if(f)return '<span class="ok">Ready:</span> file '+esc(f.name);if(y)return '<span class="ok">Ready:</span> YouTube link saved'+(isDefault(song)?' (chorus time is an estimate, test it)':'');return 'No clip yet'}
+function clipProgress(){const n=SONGS.filter(c=>CLIPS[c.song]||ytId(c.song)).length;$("#clip-progress").textContent=`${n} of ${SONGS.length} songs ready.`}
+function renderClips(){
+  $("#clips").innerHTML=SONGS.map((c,i)=>{const sg=c.song,cl=CLIPS[sg],cf=cfg(sg),url=ytUrl(sg);return `<div class="clip">
+    <div><b>"${esc(sg)}"</b><small>${esc(c.artist)} · Answer: ${esc(c.t)}</small><br><small data-status="${esc(sg)}">${statusText(sg)}</small></div>
+    <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+      <input type="text" id="yt-${i}" data-yt="${esc(sg)}" placeholder="Paste YouTube link" value="${cf.yt?'https://youtu.be/'+esc(cf.yt):''}" style="padding:6px 8px;font-size:.85rem">
+      <div class="row"><label for="st-${i}" style="font-size:.82rem;color:var(--muted)">Chorus starts at</label><input type="number" min="0" step="1" id="st-${i}" data-start="${esc(sg)}" value="${cf.start||0}"><span style="font-size:.82rem;color:var(--muted)">sec</span></div>
+    </div>
+    <div class="row" style="justify-content:flex-end">
+      <a class="btn sm" href="${ytSearch(c)}" target="_blank" rel="noopener">Find on YouTube ↗</a>
+      ${url?`<a class="btn sm" href="${url}" target="_blank" rel="noopener" data-test="${esc(sg)}">Test link ↗</a>`:''}
+      <span class="btn sm filebtn">${cl?'Replace file':'Add file'}<input type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg" id="f-${i}" data-file="${esc(sg)}"></span>
+      ${cl?`<button class="btn sm" data-preview="${esc(sg)}">Play file</button><button class="btn sm warn" data-remove="${esc(sg)}">Remove file</button>`:''}
+    </div></div>`}).join("");
+  document.querySelectorAll("[data-yt]").forEach(inp=>inp.onchange=()=>{const sg=inp.dataset.yt;const v=inp.value.trim();
+    if(!v){cfg(sg).yt="";saveCfg();renderClips();render();return}
+    const id=parseYt(v);
+    if(!id){setStatus(sg,"That doesn't look like a YouTube link. Copy it from the address bar or the Share button.");return}
+    cfg(sg).yt=id;const m=v.match(/[?&](?:t|start)=(\d+)/);if(m)cfg(sg).start=+m[1];saveCfg();renderClips();render()});
+  document.querySelectorAll("[data-start]").forEach(inp=>inp.onchange=()=>{const sg=inp.dataset.start;cfg(sg).start=Math.max(0,Math.floor(+inp.value||0));inp.value=cfg(sg).start;saveCfg();renderClips();render()});
+  document.querySelectorAll("[data-file]").forEach(inp=>inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const sg=inp.dataset.file;
+    const buf=await f.arrayBuffer();const prev=CLIPS[sg];CLIPS[sg]={name:f.name,buf};delete DECODED[sg];
+    try{await decode(sg)}catch(e){if(prev)CLIPS[sg]=prev;else delete CLIPS[sg];renderClips();setStatus(sg,"That file isn't a playable audio file. Try an MP3 or WAV.");return}
+    await idbPut(sg,CLIPS[sg]);renderClips();render()});
+  document.querySelectorAll("[data-preview]").forEach(b=>b.onclick=()=>playClip(b.dataset.preview));
+  document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=async()=>{const sg=b.dataset.remove;if(PLAYING&&PLAYING.song===sg)stopClip();delete CLIPS[sg];delete DECODED[sg];await idbDel(sg);renderClips();render()});
+  clipProgress();clipUI();
+}
+$("#b-clip").onclick=()=>{const c=cur();if(c&&c.song)playClip(c.song)};
+
+$("#b-reveal").onclick=reveal;$("#b-next").onclick=next;$("#b-prev").onclick=prev;$("#b-song").onclick=song;$("#b-tricky").onclick=tricky;
+$("#jukebox").onchange=e=>{S.jukebox=e.target.checked;render()};
+/* custom square picker with a real scrollbar */
+let comboActive=-1;
+function comboItems(){const v=$("#check").value.trim().toLowerCase();const all=CALLS.map((c,i)=>({t:c.t,i})).sort((a,b)=>a.t.localeCompare(b.t));const exact=all.some(x=>x.t.toLowerCase()===v);return (!v||exact)?all:all.filter(x=>x.t.toLowerCase().includes(v))}
+function openCombo(){const L=$("#combo-list"),items=comboItems();
+  L.innerHTML=items.length?items.map((x,k)=>{const ok=S.revealed.includes(x.i);return `<li role="option" data-t="${esc(x.t)}" class="${k===comboActive?'active':''}"><span>${esc(x.t)}</span><span class="st ${ok?'yes':'no'}">${ok?'Called':'Not yet'}</span></li>`}).join(""):'<li class="empty">No matching square</li>';
+  L.hidden=false;$("#check").setAttribute("aria-expanded","true");$("#combo-toggle").setAttribute("aria-expanded","true");
+  const a=L.querySelector("li.active");if(a)a.scrollIntoView({block:"nearest"})}
+function closeCombo(){$("#combo-list").hidden=true;comboActive=-1;$("#check").setAttribute("aria-expanded","false");$("#combo-toggle").setAttribute("aria-expanded","false")}
+function pick(t){$("#check").value=t;closeCombo();runCheck()}
+$("#check").addEventListener("input",()=>{comboActive=-1;runCheck();openCombo()});
+$("#check").addEventListener("focus",openCombo);
+$("#check").addEventListener("keydown",e=>{const L=$("#combo-list"),n=comboItems().length;
+  if(e.key==="ArrowDown"){e.preventDefault();comboActive=Math.min(n-1,comboActive+1);openCombo()}
+  else if(e.key==="ArrowUp"){e.preventDefault();comboActive=Math.max(0,comboActive-1);openCombo()}
+  else if(e.key==="Enter"){e.preventDefault();const it=comboItems()[comboActive];if(!L.hidden&&it)pick(it.t);else{closeCombo();runCheck()}}
+  else if(e.key==="Escape"){closeCombo()}});
+$("#combo-toggle").onclick=()=>{if($("#combo-list").hidden){openCombo();$("#check").focus()}else closeCombo()};
+$("#combo-list").addEventListener("mousedown",e=>e.preventDefault());
+$("#combo-list").addEventListener("click",e=>{const li=e.target.closest("li[data-t]");if(li)pick(li.dataset.t)});
+document.addEventListener("mousedown",e=>{if(!e.target.closest(".combo"))closeCombo()});
+
+function resetUI(){
+  const row=$("#reset-row");
+  row.innerHTML=`<span class="inline-confirm">Clear this game and reshuffle?</span><button class="btn warn" id="r-yes">Yes, new game</button><button class="btn" id="r-no">Cancel</button>`;
+  $("#r-yes").onclick=()=>{S=fresh(S.deck,S.prep,S.jukebox);CALLS=S.calls;restoreReset();render()};
+  $("#r-no").onclick=restoreReset;
+}
+function restoreReset(){$("#reset-row").innerHTML=`<button class="btn warn" id="b-reset">New game (reshuffle)</button>`;$("#b-reset").onclick=resetUI}
+$("#b-reset").onclick=resetUI;
+
+document.addEventListener("keydown",e=>{
+  if(e.target.matches("input,textarea,select")||$("#view-game").hidden)return;
+  if((e.key===" "||e.key==="Enter")&&e.target.matches("button"))return;
+  if(e.key===" "||e.key==="Enter"){e.preventDefault();reveal()}
+  else if(e.key==="ArrowRight")next(); else if(e.key==="ArrowLeft")prev();
+  else if(e.key.toLowerCase()==="s")song(); else if(e.key.toLowerCase()==="p"){if(!$("#b-clip").hidden)$("#b-clip").click();else if(!$("#b-yt").hidden)$("#b-yt").click()} else if(e.key.toLowerCase()==="t")tricky();
+});
+
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav.tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  ["game","guide","key","lib"].forEach(v=>$("#view-"+v).hidden=v!==b.dataset.tab);
+});
+
+
+/* ---------- question library + game builder ---------- */
+let draft={mode:S.deck.mode||"starter",topics:[...(S.deck.topics||[])]};
+if(!draft.topics.length)draft.topics=["auto","property","cyber","eo","umbrella"];
+function renderBuilder(){
+  $("#m-starter").checked=draft.mode==="starter";$("#m-library").checked=draft.mode==="library";
+  $("#opt-starter").classList.toggle("sel",draft.mode==="starter");$("#opt-library").classList.toggle("sel",draft.mode==="library");
+  $("#topic-list").classList.toggle("off",draft.mode!=="library");
+  document.querySelectorAll("#topic-list input").forEach(x=>x.checked=draft.topics.includes(x.value));
+  const sum=$("#build-sum"),btn=$("#b-build");
+  if(draft.mode==="starter"){sum.className="sum";sum.textContent="30 squares, 30 calls. Matches the 30 bingo card PDFs already made.";if(btn)btn.disabled=false;return}
+  const n=uniqueCount(draft.topics);
+  if(n<24){sum.className="sum bad";sum.textContent=`${n} squares. Cards need at least 24, so add another topic.`;if(btn)btn.disabled=true}
+  else{sum.className="sum";sum.textContent=`${n} squares, ${n} calls (about 1 minute each). Each card draws 24 of them.`;if(btn)btn.disabled=false}
+}
+$("#topic-list").innerHTML=TOPICS.filter(t=>t.k!=="starter").map(t=>`<label class="opt"><input type="checkbox" value="${t.k}" id="tp-${t.k}"><span><b>${esc(t.name)}</b><small>${esc(t.doc)} · <span class="cnt">${uniqueCount([t.k])} terms</span></small></span></label>`).join("");
+$("#m-starter").onchange=()=>{draft.mode="starter";renderBuilder()};
+$("#m-library").onchange=()=>{draft.mode="library";renderBuilder()};
+document.querySelectorAll("#topic-list input").forEach(x=>x.onchange=()=>{draft.topics=x.checked?[...new Set([...draft.topics,x.value])]:draft.topics.filter(k=>k!==x.value);renderBuilder()});
+function buildUI(){
+  $("#build-row").innerHTML=`<span class="inline-confirm">This clears the current game. Start the new one?</span><button class="btn primary" id="bb-yes">Yes, start it</button><button class="btn" id="bb-no">Cancel</button>`;
+  $("#bb-yes").onclick=()=>{S=fresh({mode:draft.mode,topics:draft.mode==="library"?[...draft.topics]:[]},S.prep,S.jukebox);CALLS=S.calls;restoreBuild();render();
+    const s=$("#build-sum");s.className="sum";s.textContent=S.deck.mode==="library"?`Started: ${deckName(S.deck)} (${CALLS.length} calls). Ask Claude to make new bingo cards for these squares before playing.`:`Started: Starter set (30 calls). The 30 bingo card PDFs already made still match.`};
+  $("#bb-no").onclick=restoreBuild;
+}
+function restoreBuild(){$("#build-row").innerHTML=`<button class="btn primary" id="b-build">Start this game</button>`;$("#b-build").onclick=buildUI;renderBuilder()}
+$("#b-build").onclick=buildUI;
+$("#srclist").innerHTML=TOPICS.map(t=>{const n=t.k==="starter"?STARTER.length:LIB.filter(e=>e.src===t.k).length;return `<li><span><b>${esc(t.name)}</b><br><span class="tier">${esc(t.tier)} · ${esc(t.doc)}</span></span><span class="cnt">${n} calls</span></li>`}).join("");
+$("#lib-groups").innerHTML=TOPICS.map(t=>{const rows=(t.k==="starter"?STARTER:LIB.filter(e=>e.src===t.k));return `<details class="grp"><summary><span>${esc(t.name)} <span class="srccell">${esc(t.doc)}</span></span><span class="cnt">${rows.length}</span></summary><div class="keywrap"><table class="key"><thead><tr><th>Square</th><th>Scenario</th><th>Why (host note)</th></tr></thead><tbody>${rows.map(c=>`<tr><td class="t">${esc(c.t)}</td><td>${esc(c.s)}</td><td>${esc(c.w)}</td></tr>`).join("")}</tbody></table></div></details>`}).join("");
+renderBuilder();
+
+document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{
+  const el=$("#"+b.dataset.copy), txt=el.textContent, old=b.textContent;
+  const done=()=>{b.textContent="Copied";setTimeout(()=>b.textContent=old,1500)};
+  const fallback=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent="Selected, press Ctrl/Cmd+C";setTimeout(()=>b.textContent=old,2500)};
+  try{navigator.clipboard.writeText(txt).then(done,fallback)}catch(e){fallback()}
+});
+render();
+</script>
+
+</body>
+</html>
